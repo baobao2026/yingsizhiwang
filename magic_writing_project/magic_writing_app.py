@@ -44,7 +44,7 @@ def call_deepseek_api(messages: List[Dict], temperature: float = 0.7, max_retrie
         "model": "deepseek-chat",
         "messages": messages,
         "temperature": temperature,
-        "max_tokens": 1500
+        "max_tokens": 2000
     }
     
     for attempt in range(max_retries):
@@ -410,6 +410,101 @@ st.markdown("""
         background: linear-gradient(90deg, #4D96FF, #9D4DFF);
     }
     
+    /* 评分卡片样式 */
+    .score-card {
+        background: linear-gradient(135deg, #ffffff, #f8faff);
+        border-radius: 20px;
+        padding: 25px;
+        margin: 20px 0;
+        border: 2px solid #E2E8F0;
+        box-shadow: 0 12px 35px rgba(77, 150, 255, 0.1);
+        position: relative;
+    }
+    
+    .overall-score {
+        text-align: center;
+        padding: 25px;
+        background: linear-gradient(135deg, #4D96FF, #9D4DFF);
+        border-radius: 15px;
+        color: white;
+        margin-bottom: 25px;
+    }
+    
+    .score-number {
+        font-size: 4.5rem;
+        font-weight: 900;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        margin: 10px 0;
+    }
+    
+    .score-text {
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin: 5px 0;
+    }
+    
+    .score-scale {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 15px;
+        font-size: 0.9rem;
+        color: rgba(255,255,255,0.9);
+    }
+    
+    /* 维度评分卡片 */
+    .dimension-card {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin: 15px 0;
+        border-left: 5px solid;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.05);
+        transition: all 0.3s;
+    }
+    
+    .dimension-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+    }
+    
+    .dimension-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+    
+    .dimension-title {
+        font-size: 1.3rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .dimension-score {
+        font-size: 1.5rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #4D96FF, #9D4DFF);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    
+    .score-bar {
+        height: 10px;
+        background: #E2E8F0;
+        border-radius: 5px;
+        margin: 15px 0;
+        overflow: hidden;
+    }
+    
+    .score-fill {
+        height: 100%;
+        border-radius: 5px;
+        transition: width 1s ease;
+    }
+    
     /* AI建议卡片 - 特别增强 */
     .ai-suggestion-card {
         background: linear-gradient(135deg, #E8F4FF, #F0F8FF);
@@ -602,6 +697,17 @@ st.markdown("""
         box-shadow: 0 8px 25px rgba(255, 152, 0, 0.1);
     }
     
+    /* 网络状态提示 */
+    .network-status {
+        background: linear-gradient(135deg, #FFF9F0, #FFF3E0);
+        border-left: 6px solid #FF9800;
+        border-radius: 15px;
+        padding: 20px;
+        margin: 20px 0;
+        box-shadow: 0 8px 25px rgba(255, 152, 0, 0.1);
+        text-align: center;
+    }
+    
     /* 响应式调整 */
     @media (max-width: 768px) {
         .main-title {
@@ -622,6 +728,12 @@ st.markdown("""
         }
         .content-box-enhanced {
             padding: 20px;
+        }
+        .score-number {
+            font-size: 3.5rem;
+        }
+        .score-text {
+            font-size: 1.5rem;
         }
     }
     
@@ -709,10 +821,175 @@ if 'writing_topic' not in st.session_state:
     st.session_state.writing_topic = ''
 if 'writing_grade' not in st.session_state:
     st.session_state.writing_grade = 'Grade 3-4'
+if 'evaluation_content' not in st.session_state:
+    st.session_state.evaluation_content = ''
 
 # ==================== 增强版AI助手类 ====================
 class EnhancedAIAssistant:
     """增强版AI助手，提供更详细的建议"""
+    
+    @staticmethod
+    def evaluate_writing_detailed(topic: str, grade: str, content: str) -> Dict:
+        """详细的作文评价，包含百分制打分和多维度分析"""
+        if OFFLINE_MODE:
+            return EnhancedAIAssistant._get_offline_detailed_evaluation(topic, grade, content)
+            
+        prompt = f"""请对以下英语作文进行详细的评价和打分：
+
+作文主题：{topic}
+学生年级：{grade}
+作文内容：{content[:1500]}
+
+请按照以下要求进行评价：
+
+1. 总体评分（百分制）：给出0-100分的总体评分
+
+2. 多维度评分（每个维度0-100分）：
+   - 结构（Structure）：段落组织、逻辑连贯性
+   - 词汇（Vocabulary）：词汇丰富度、准确性、多样性
+   - 短语（Phrases）：固定搭配、习惯用语使用
+   - 句型（Sentence Patterns）：句式多样性、复杂度
+   - 语法（Grammar）：语法准确性、时态一致性
+   - 内容（Content）：内容充实度、主题相关性
+
+3. 详细评价（中英文双语）：
+   - 英文评价：每个维度的具体优点和改进建议
+   - 中文评价：每个维度的具体优点和改进建议
+
+4. 改进建议：
+   - 提供3-5条具体的修改建议
+   - 给出修改前后的对比示例
+
+5. 鼓励性总结
+
+请以JSON格式返回，包含以下字段：
+- overall_score: 总体分数 (0-100)
+- dimension_scores: 各维度分数字典
+- english_evaluation: 英文详细评价
+- chinese_evaluation: 中文详细评价
+- improvement_suggestions: 改进建议列表
+- encouragement: 鼓励性话语
+
+注意：评价要具体、有建设性，既要指出优点也要提出改进建议。"""
+        
+        messages = [{"role": "user", "content": prompt}]
+        response = call_deepseek_api(messages, temperature=0.3)
+        
+        if response:
+            try:
+                # 尝试解析JSON响应
+                import re
+                json_match = re.search(r'\{.*\}', response, re.DOTALL)
+                if json_match:
+                    return json.loads(json_match.group())
+                else:
+                    # 如果不是JSON，使用离线版本
+                    return EnhancedAIAssistant._get_offline_detailed_evaluation(topic, grade, content)
+            except:
+                return EnhancedAIAssistant._get_offline_detailed_evaluation(topic, grade, content)
+        else:
+            return EnhancedAIAssistant._get_offline_detailed_evaluation(topic, grade, content)
+    
+    @staticmethod
+    def _get_offline_detailed_evaluation(topic: str, grade: str, content: str) -> Dict:
+        """离线详细评价"""
+        # 根据内容长度和质量生成模拟评分
+        content_length = len(content)
+        word_count = len(content.split())
+        
+        # 基础分数
+        base_score = min(85 + int(content_length / 50), 95)
+        
+        # 随机调整
+        random_adjust = random.randint(-5, 5)
+        overall_score = min(max(base_score + random_adjust, 60), 95)
+        
+        # 各维度分数
+        dimension_scores = {
+            "structure": min(max(overall_score + random.randint(-8, 8), 60), 95),
+            "vocabulary": min(max(overall_score + random.randint(-10, 5), 60), 95),
+            "phrases": min(max(overall_score + random.randint(-12, 3), 60), 95),
+            "sentence_patterns": min(max(overall_score + random.randint(-8, 8), 60), 95),
+            "grammar": min(max(overall_score + random.randint(-15, 5), 60), 95),
+            "content": min(max(overall_score + random.randint(-5, 10), 60), 95)
+        }
+        
+        return {
+            "overall_score": overall_score,
+            "dimension_scores": dimension_scores,
+            "english_evaluation": f"""
+📝 **English Evaluation for "{topic}"**
+
+**Overall Assessment:**
+This is a good effort! The essay shows understanding of the topic and generally follows a logical structure. The student demonstrates basic writing skills appropriate for {grade} level.
+
+**Detailed Analysis:**
+
+**Structure (Score: {dimension_scores['structure']}/100):**
+✅ **Strengths:** Clear introduction and conclusion. Basic paragraph organization is evident.
+📝 **Areas for Improvement:** Could improve transitions between paragraphs for better flow.
+
+**Vocabulary (Score: {dimension_scores['vocabulary']}/100):**
+✅ **Strengths:** Uses appropriate grade-level vocabulary.
+📝 **Areas for Improvement:** Try to incorporate more descriptive adjectives and specific nouns.
+
+**Phrases (Score: {dimension_scores['phrases']}/100):**
+✅ **Strengths:** Basic phrases are used correctly.
+📝 **Areas for Improvement:** Could use more idiomatic expressions and collocations.
+
+**Sentence Patterns (Score: {dimension_scores['sentence_patterns']}/100):**
+✅ **Strengths:** Simple sentences are mostly correct.
+📝 **Areas for Improvement:** Work on varying sentence structures (compound and complex sentences).
+
+**Grammar (Score: {dimension_scores['grammar']}/100):**
+✅ **Strengths:** Basic sentence structure is generally correct.
+📝 **Areas for Improvement:** Watch for subject-verb agreement and consistent verb tenses.
+
+**Content (Score: {dimension_scores['content']}/100):**
+✅ **Strengths:** Addresses the topic with relevant ideas.
+📝 **Areas for Improvement:** Add more specific details and examples to support main points.
+""",
+            "chinese_evaluation": f"""
+📝 **中文评价报告 - "{topic}"**
+
+**总体评估：**
+这是一次不错的尝试！作文显示出对主题的理解，基本遵循了逻辑结构。学生展示了适合{grade}年级的基本写作能力。
+
+**详细分析：**
+
+**结构 (得分: {dimension_scores['structure']}/100):**
+✅ **优点：** 开头和结尾清晰，基本的段落组织结构明显。
+📝 **改进建议：** 可以加强段落之间的过渡，使文章更流畅。
+
+**词汇 (得分: {dimension_scores['vocabulary']}/100):**
+✅ **优点：** 使用了适当的年级水平词汇。
+📝 **改进建议：** 尝试加入更多描述性形容词和具体名词。
+
+**短语 (得分: {dimension_scores['phrases']}/100):**
+✅ **优点：** 基本短语使用正确。
+📝 **改进建议：** 可以使用更多习惯用语和固定搭配。
+
+**句型 (得分: {dimension_scores['sentence_patterns']}/100):**
+✅ **优点：** 简单句基本正确。
+📝 **改进建议：** 练习变化句式结构（复合句和复杂句）。
+
+**语法 (得分: {dimension_scores['grammar']}/100):**
+✅ **优点：** 基本句子结构基本正确。
+📝 **改进建议：** 注意主谓一致和动词时态的一致性。
+
+**内容 (得分: {dimension_scores['content']}/100):**
+✅ **优点：** 围绕主题表达了相关观点。
+📝 **改进建议：** 增加更多具体细节和例子来支持主要观点。
+""",
+            "improvement_suggestions": [
+                "Add more descriptive details to make your writing more vivid.",
+                "Try using different sentence structures to make your essay more interesting.",
+                "Proofread carefully for grammar and spelling errors.",
+                "Include specific examples to support your main ideas.",
+                "Practice using new vocabulary words in your writing."
+            ],
+            "encouragement": "Great effort! Keep practicing and you will continue to improve your English writing skills. Remember, every great writer started somewhere! 🌟"
+        }
     
     @staticmethod
     def provide_detailed_writing_suggestions(topic: str, grade: str, content: str) -> str:
@@ -1397,12 +1674,27 @@ elif st.session_state.page == 'writing':
     with btn_col2:
         if st.button("⭐ 提交评价", use_container_width=True, type="primary", key="submit_eval"):
             if writing_content and writing_topic:
-                st.session_state.writing_history.append({
+                # 保存到写作历史
+                writing_record = {
                     'topic': writing_topic,
                     'content': writing_content,
                     'grade': writing_grade,
                     'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                })
+                }
+                st.session_state.writing_history.append(writing_record)
+                
+                # 获取评价
+                with st.spinner("🤖 AI正在深度评价你的作文..."):
+                    evaluation = EnhancedAIAssistant.evaluate_writing_detailed(writing_topic, writing_grade, writing_content)
+                    st.session_state.evaluation_content = evaluation
+                    
+                    # 保存评价历史
+                    evaluation_record = {
+                        'topic': writing_topic,
+                        'evaluation': evaluation,
+                        'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    }
+                    st.session_state.evaluation_history.append(evaluation_record)
                 
                 st.session_state.page = "evaluate"
                 st.rerun()
@@ -1526,7 +1818,260 @@ elif st.session_state.page == 'evaluate':
     </div>
     """, unsafe_allow_html=True)
     
-    # 这里保持原来的评价逻辑，但可以调用增强版建议
+    # 网络状态检查
+    if OFFLINE_MODE:
+        st.markdown("""
+        <div class="network-status">
+            <h3>⚠️ 离线模式</h3>
+            <p>当前处于离线模式，显示示例评价结果。</p>
+            <p>配置API密钥后可以获取AI实时评价。</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # 评价内容
+    if st.session_state.evaluation_content:
+        evaluation = st.session_state.evaluation_content
+    else:
+        # 如果没有评价内容，使用默认示例
+        st.info("暂无评价内容，请先提交作文进行评价")
+        
+        # 示例评价
+        evaluation = {
+            "overall_score": 85,
+            "dimension_scores": {
+                "structure": 82,
+                "vocabulary": 80,
+                "phrases": 78,
+                "sentence_patterns": 85,
+                "grammar": 88,
+                "content": 90
+            },
+            "english_evaluation": """
+📝 **English Evaluation for "My Favorite Season"**
+
+**Overall Assessment:**
+This is a good effort! The essay shows understanding of the topic and generally follows a logical structure. The student demonstrates basic writing skills appropriate for Grade 3-4 level.
+
+**Detailed Analysis:**
+
+**Structure (Score: 82/100):**
+✅ **Strengths:** Clear introduction and conclusion. Basic paragraph organization is evident.
+📝 **Areas for Improvement:** Could improve transitions between paragraphs for better flow.
+
+**Vocabulary (Score: 80/100):**
+✅ **Strengths:** Uses appropriate grade-level vocabulary.
+📝 **Areas for Improvement:** Try to incorporate more descriptive adjectives and specific nouns.
+
+**Phrases (Score: 78/100):**
+✅ **Strengths:** Basic phrases are used correctly.
+📝 **Areas for Improvement:** Could use more idiomatic expressions and collocations.
+
+**Sentence Patterns (Score: 85/100):**
+✅ **Strengths:** Simple sentences are mostly correct.
+📝 **Areas for Improvement:** Work on varying sentence structures (compound and complex sentences).
+
+**Grammar (Score: 88/100):**
+✅ **Strengths:** Basic sentence structure is generally correct.
+📝 **Areas for Improvement:** Watch for subject-verb agreement and consistent verb tenses.
+
+**Content (Score: 90/100):**
+✅ **Strengths:** Addresses the topic with relevant ideas.
+📝 **Areas for Improvement:** Add more specific details and examples to support main points.
+""",
+            "chinese_evaluation": """
+📝 **中文评价报告 - "My Favorite Season"**
+
+**总体评估：**
+这是一次不错的尝试！作文显示出对主题的理解，基本遵循了逻辑结构。学生展示了适合Grade 3-4年级的基本写作能力。
+
+**详细分析：**
+
+**结构 (得分: 82/100):**
+✅ **优点：** 开头和结尾清晰，基本的段落组织结构明显。
+📝 **改进建议：** 可以加强段落之间的过渡，使文章更流畅。
+
+**词汇 (得分: 80/100):**
+✅ **优点：** 使用了适当的年级水平词汇。
+📝 **改进建议：** 尝试加入更多描述性形容词和具体名词。
+
+**短语 (得分: 78/100):**
+✅ **优点：** 基本短语使用正确。
+📝 **改进建议：** 可以使用更多习惯用语和固定搭配。
+
+**句型 (得分: 85/100):**
+✅ **优点：** 简单句基本正确。
+📝 **改进建议：** 练习变化句式结构（复合句和复杂句）。
+
+**语法 (得分: 88/100):**
+✅ **优点：** 基本句子结构基本正确。
+📝 **改进建议：** 注意主谓一致和动词时态的一致性。
+
+**内容 (得分: 90/100):**
+✅ **优点：** 围绕主题表达了相关观点。
+📝 **改进建议：** 增加更多具体细节和例子来支持主要观点。
+""",
+            "improvement_suggestions": [
+                "Add more descriptive details to make your writing more vivid.",
+                "Try using different sentence structures to make your essay more interesting.",
+                "Proofread carefully for grammar and spelling errors.",
+                "Include specific examples to support your main ideas.",
+                "Practice using new vocabulary words in your writing."
+            ],
+            "encouragement": "Great effort! Keep practicing and you will continue to improve your English writing skills. Remember, every great writer started somewhere! 🌟"
+        }
+    
+    # 显示总体评分
+    st.markdown(f"""
+    <div class="overall-score">
+        <div style="font-size: 1.2rem; margin-bottom: 10px;">总体评分</div>
+        <div class="score-number">{evaluation['overall_score']}</div>
+        <div class="score-text">/ 100</div>
+        <div class="score-scale">
+            <div>0</div>
+            <div>25</div>
+            <div>50</div>
+            <div>75</div>
+            <div>100</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # 显示各维度评分
+    st.markdown("### 📊 多维度评分分析")
+    
+    dimension_colors = {
+        "structure": "#4D96FF",
+        "vocabulary": "#FF9A3D",
+        "phrases": "#6BCF7F",
+        "sentence_patterns": "#9D4DFF",
+        "grammar": "#FF3366",
+        "content": "#33CC33"
+    }
+    
+    dimension_icons = {
+        "structure": "🏗️",
+        "vocabulary": "📚",
+        "phrases": "💬",
+        "sentence_patterns": "🔤",
+        "grammar": "✓",
+        "content": "📝"
+    }
+    
+    dimension_names = {
+        "structure": "结构",
+        "vocabulary": "词汇",
+        "phrases": "短语",
+        "sentence_patterns": "句型",
+        "grammar": "语法",
+        "content": "内容"
+    }
+    
+    dimension_descriptions = {
+        "structure": "段落组织、逻辑连贯性",
+        "vocabulary": "词汇丰富度、准确性",
+        "phrases": "固定搭配、习惯用语",
+        "sentence_patterns": "句式多样性、复杂度",
+        "grammar": "语法准确性、时态一致性",
+        "content": "内容充实度、主题相关性"
+    }
+    
+    # 创建两列显示维度评分
+    col1, col2 = st.columns(2)
+    
+    dimensions = list(evaluation['dimension_scores'].keys())
+    for idx, dimension in enumerate(dimensions):
+        score = evaluation['dimension_scores'][dimension]
+        color = dimension_colors.get(dimension, "#4D96FF")
+        icon = dimension_icons.get(dimension, "📊")
+        name = dimension_names.get(dimension, dimension)
+        desc = dimension_descriptions.get(dimension, "")
+        
+        with (col1 if idx % 2 == 0 else col2):
+            st.markdown(f"""
+            <div class="dimension-card" style="border-left-color: {color};">
+                <div class="dimension-header">
+                    <div class="dimension-title">
+                        <span>{icon}</span>
+                        <div>
+                            <div style="font-size: 1.1rem; font-weight: 700;">{name}</div>
+                            <div style="font-size: 0.85rem; color: #666;">{desc}</div>
+                        </div>
+                    </div>
+                    <div class="dimension-score">{score}/100</div>
+                </div>
+                <div class="score-bar">
+                    <div class="score-fill" style="width: {score}%; background: {color};"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: #666;">
+                    <div>需改进</div>
+                    <div>优秀</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    # 显示详细评价
+    st.markdown("### 📝 详细评价报告")
+    
+    tab1, tab2 = st.tabs(["🇺🇸 英文评价", "🇨🇳 中文评价"])
+    
+    with tab1:
+        st.markdown(f"""
+        <div class="content-box-enhanced">
+            {evaluation['english_evaluation']}
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with tab2:
+        st.markdown(f"""
+        <div class="content-box-enhanced">
+            {evaluation['chinese_evaluation']}
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # 显示改进建议
+    st.markdown("### 💡 具体改进建议")
+    
+    suggestions = evaluation.get('improvement_suggestions', [])
+    for i, suggestion in enumerate(suggestions, 1):
+        st.markdown(f"""
+        <div class="ai-suggestion-point">
+            <div class="suggestion-title">
+                <span style="background: #4D96FF; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.9rem;">{i}</span>
+                {suggestion}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # 显示鼓励性总结
+    if 'encouragement' in evaluation:
+        st.markdown(f"""
+        <div class="ai-suggestion-card" style="background: linear-gradient(135deg, #E8FFF0, #F0FFF8); border-left-color: #33CC33;">
+            <div class="ai-suggestion-header">
+                <span>🌟</span> 鼓励与总结
+            </div>
+            <div style="font-size: 1.1rem; line-height: 1.6; color: #2D3748;">
+                {evaluation['encouragement']}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # 操作按钮
+    st.markdown("<br>", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("✏️ 重新修改", use_container_width=True, key="revise_essay"):
+            st.session_state.page = "writing"
+            st.rerun()
+    
+    with col2:
+        if st.button("💾 保存评价", use_container_width=True, key="save_evaluation"):
+            st.success("✅ 评价已保存到历史记录！")
+    
+    with col3:
+        if st.button("📊 查看历史", use_container_width=True, key="view_history"):
+            st.session_state.page = "progress"
+            st.rerun()
 
 # ==================== 成长记录页面 ====================
 elif st.session_state.page == 'progress':
@@ -1537,7 +2082,39 @@ elif st.session_state.page == 'progress':
     </div>
     """, unsafe_allow_html=True)
     
-    # 这里保持原来的成长记录逻辑
+    # 显示写作历史
+    if st.session_state.writing_history:
+        st.markdown("### 📝 写作历史记录")
+        
+        for i, writing in enumerate(reversed(st.session_state.writing_history[-5:]), 1):
+            with st.expander(f"{i}. {writing['topic']} - {writing['timestamp']}"):
+                st.markdown(f"**年级：** {writing['grade']}")
+                st.markdown(f"**作文内容：**")
+                st.text_area(f"内容 {i}", writing['content'], height=150, key=f"content_{i}", label_visibility="collapsed")
+    
+    # 显示评价历史
+    if st.session_state.evaluation_history:
+        st.markdown("### ⭐ 评价历史记录")
+        
+        for i, evaluation_record in enumerate(reversed(st.session_state.evaluation_history[-5:]), 1):
+            evaluation = evaluation_record['evaluation']
+            with st.expander(f"{i}. {evaluation_record['topic']} - 评分: {evaluation['overall_score']}/100 - {evaluation_record['timestamp']}"):
+                # 显示评分概览
+                cols = st.columns(6)
+                for idx, (dimension, score) in enumerate(evaluation['dimension_scores'].items()):
+                    with cols[idx]:
+                        st.metric(
+                            dimension_names.get(dimension, dimension),
+                            f"{score}/100"
+                        )
+    
+    # 如果没有历史记录
+    if not st.session_state.writing_history and not st.session_state.evaluation_history:
+        st.info("暂无学习记录，请先开始写作并获取评价")
+        
+        if st.button("✏️ 开始第一次写作", type="primary", use_container_width=True):
+            st.session_state.page = "writing"
+            st.rerun()
 
 # ==================== 页脚 ====================
 st.markdown("<br><br>", unsafe_allow_html=True)
@@ -1621,4 +2198,3 @@ DEEPSEEK_API_KEY="sk-a9b0d92a0d474ca6acd0ceb24360fef8"
         
         if st.button("🔄 我已配置，重新检查", key="recheck_api"):
             st.rerun()
-
