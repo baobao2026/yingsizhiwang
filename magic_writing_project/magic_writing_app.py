@@ -1257,7 +1257,7 @@ with footer_col1:
     <div style="color: #666; text-align: center;">
         <p style="margin: 0;">
             <strong>🎨 英思织网 AI写作魔法学院</strong> | 
-            🤖 Powered by Baobao2026 | 
+            🤖 Powered by DeepSeek AI | 
             © 2024 版权所有
         </p>
     </div>
@@ -1267,4 +1267,5 @@ with footer_col2:
     if st.button("🏠 返回首页"):
         st.session_state.page = "home"
         st.rerun()
+
 
