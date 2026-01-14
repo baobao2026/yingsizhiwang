@@ -774,7 +774,7 @@ class EnhancedAIAssistant:
 **Specific Suggestions:**
 1. Instead of "very good", try "excellent", "wonderful", or "impressive".
 2. Use transition words like "furthermore", "however", "in addition" to connect ideas.
-3. Try combining short sentences: "I like spring. It is warm." → "I like spring because it is warm.""""
+3. Try combining short sentences: "I like spring. It is warm." -> "I like spring because it is warm.""""
         
         # 中文评价
         chinese_evaluation = """**结构点评：**
